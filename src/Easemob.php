@@ -99,13 +99,13 @@ class Easemob
         return $this->sendMessage($from, $username, $options);
     }
 
-    private function httpCurl($url, $params = [], $type = 'POST')
+    private function httpCurl($url, $params = [])
     {
-        $header = NULL;
+        $header = [];
         if ($url !== $this->url . '/token') {
             $token = $this->getToken();
             $header = [
-                'Authorization:Bearer ' . $token
+                'Authorization: Bearer ' . $token
             ];
         }
 
