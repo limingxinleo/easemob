@@ -10,6 +10,8 @@
 // +----------------------------------------------------------------------
 namespace limx\tools;
 
+use limx\func\Curl;
+
 class Easemob
 {
     const URL = 'https://a1.easemob.com';
@@ -34,12 +36,12 @@ class Easemob
     public function __construct($options, $debug = false)
     {
         $this->debug = $debug;
-        $paramsMap = array(
+        $paramsMap = [
             'client_id',
             'client_secret',
             'org_name',
             'app_name'
-        );
+        ];
         foreach ($paramsMap as $paramsName) {
             if (!isset($options[$paramsName])) {
                 throw new \InvalidArgumentException("初始化未设置[{$paramsName}]");
@@ -48,5 +50,128 @@ class Easemob
             }
         }
         $this->url = self::URL . '/' . $this->org_name . '/' . $this->app_name;
+    }
+
+    /**
+     * 创建新用户[授权模式]
+     * @param $username
+     * @param $password
+     * @return mixed
+     * @throws \ErrorException
+     */
+    public function userAuthorizedRegister($username, $password)
+    {
+        $url = $this->url . '/users';
+        return $this->httpCurl(
+            $url,
+            [
+                'username' => $username,
+                'password' => $password
+            ]
+        );
+    }
+
+    /**
+     * @param string|array $groupId 发给群ID
+     * @param string $from 谁发的
+     * @param array $options
+     * @param $options ['mixed'] 是否需要将ext的内容同时发送到txt里 环信的webim不支持接受ext 故加入此功能
+     * @param $options ['msg'] 消息内容
+     * @param $options ['ext'] 扩展消息内容
+     * @return mixed
+     */
+    public function sendToGroups($groupId, $from, $options)
+    {
+        return $this->sendMessage($from, $groupId, $options, 'chatgroups');
+    }
+
+    /**
+     * @param string|array $username 发给谁
+     * @param string $from 谁发的
+     * @param array $options
+     * @param $options ['mixed'] 是否需要将ext的内容同时发送到txt里 环信的webim不支持接受ext 故加入此功能
+     * @param $options ['msg'] 消息内容
+     * @param $options ['ext'] 扩展消息内容
+     * @return mixed
+     */
+    public function sendToUsers($username, $from, $options)
+    {
+        return $this->sendMessage($from, $username, $options);
+    }
+
+    private function httpCurl($url, $params = [], $type = 'POST')
+    {
+        $header = NULL;
+        if ($url !== $this->url . '/token') {
+            $token = $this->getToken();
+            $header = [
+                'Authorization:Bearer ' . $token
+            ];
+        }
+
+        $response = Curl::post($url, $params, 'json', $header);
+        return json_decode($response, true);
+    }
+
+    /**
+     * 获取token
+     * @return bool
+     * @throws \ErrorException
+     */
+    private function getToken()
+    {
+//        $token = $this->cacheToken();
+//        if ($token) {
+//            return $token;
+//        } else {
+        $option ['grant_type'] = "client_credentials";
+        $option ['client_id'] = $this->client_id;
+        $option ['client_secret'] = $this->client_secret;
+        $token = $this->httpCurl($this->url . '/token', $option);
+        if (isset($token['access_token'])) {
+            //$this->cacheToken($token);
+            return $token['access_token'];
+        } else {
+            return false;
+        }
+//        }
+    }
+
+
+    /**
+     * @param string $from 谁发的
+     * @param string|array $to 发给谁,人或群
+     * @param array $options
+     * @param $options ['mixed'] 是否需要将ext的内容同时发送到txt里 环信的webim不支持接受ext 故加入此功能
+     * @param $options ['msg'] 消息内容
+     * @param $options ['ext'] 扩展消息内容
+     * @param string $target_type 群还是人
+     * @return mixed
+     * @throws \ErrorException
+     */
+    private function sendMessage($from, $to, $options, $target_type = 'users')
+    {
+        $data = array(
+            'target_type' => $target_type,
+            'target' => is_array($to) ? $to : array($to),
+            'from' => $from,
+        );
+        if (isset($options['mixed'])) {
+            $data['msg'] = array(
+                'type' => 'txt',
+                'msg' => json_encode($options['ext'])
+            );
+        }
+        if (isset($options['msg'])) {
+            $data['msg'] = array(
+                'type' => 'txt',
+                'msg' => strval($options['msg'])
+            );
+        }
+        if (isset($options['ext'])) {
+            $data['ext'] = $options['ext'];
+        }
+        $url = $this->url . '/messages';
+        return $this->httpCurl($url, $data);
     }
 }
