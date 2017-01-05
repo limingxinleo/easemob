@@ -139,6 +139,18 @@ class Easemob
         );
     }
 
+    /**
+     * [userInfoByName desc]
+     * @desc 获取IM用户信息 单个
+     * @author limx
+     * @param $name
+     */
+    public function userInfoByName($name)
+    {
+        $url = $this->url . '/users/' . $name;
+        return $this->httpCurl($url, [], 'GET');
+    }
+
 
     /**
      * @param string|array $groupId 发给群ID
@@ -176,7 +188,7 @@ class Easemob
      * @param array $params
      * @return mixed
      */
-    private function httpCurl($url, $params = [])
+    private function httpCurl($url, $params = [], $method = 'POST')
     {
         $header = [];
         if ($url !== $this->url . '/token') {
@@ -185,8 +197,17 @@ class Easemob
                 'Authorization: Bearer ' . $token
             ];
         }
+        $response = [];
+        switch (strtoupper($method)) {
+            case 'GET':
+                $response = Curl::get($url, $header);
+                break;
+            case 'POST':
+            default:
+                $response = Curl::post($url, $params, 'json', $header);
+                break;
+        }
 
-        $response = Curl::post($url, $params, 'json', $header);
         return json_decode($response, true);
     }
 
