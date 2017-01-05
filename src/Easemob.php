@@ -23,6 +23,7 @@ class Easemob
     private $url;
     private $debug;
     private $storageAdapter;
+    private $token_path;
 
     /**
      * 初始化环形参数
@@ -53,6 +54,72 @@ class Easemob
     }
 
     /**
+     * [setTokenPath desc]
+     * @desc 设置token缓存文件地址
+     * @author limx
+     * @param string $path
+     */
+    public function setTokenPath($path = '')
+    {
+        if (!empty($path) && Str::length($path) > 0) {
+            $this->token_path = $path;
+        }
+    }
+
+    /**
+     * 设置
+     * @param callable $callback
+     */
+    public function setStorageAdapter($callback)
+    {
+        if (is_callable($callback)) {
+            $this->storageAdapter = $callback;
+        }
+    }
+
+    /**
+     * 持久化token
+     * @param bool $saveToken
+     * @return bool
+     */
+    private function cacheToken($saveToken = false)
+    {
+        $cacheFilePath = $this->token_path;
+        if ($saveToken) {
+            $saveToken['expires_in'] = $saveToken['expires_in'] + time();
+            if ($this->storageAdapter) {
+                return call_user_func($this->storageAdapter, serialize($saveToken));
+            } else {
+                if (!empty($cacheFilePath)) {
+                    file_put_contents($cacheFilePath, serialize($saveToken));
+                }
+            }
+        } else {
+            if ($this->storageAdapter) {
+                $tokenData = call_user_func($this->storageAdapter, false);
+            } else {
+                if (empty($cacheFilePath)) {
+                    $tokenData = null;
+                } else {
+                    $tokenData = file_get_contents($cacheFilePath);
+                }
+            }
+            if ($tokenData) {
+                $data = unserialize($tokenData);
+                if (!isset($data['expires_in']) || !isset($data['access_token'])) {
+                    return false;
+                }
+                if ($data['expires_in'] < time()) {
+                    return false;
+                } else {
+                    return $data['access_token'];
+                }
+            }
+            return false;
+        }
+    }
+
+    /**
      * 创建新用户[授权模式]
      * @param $username
      * @param $password
@@ -70,6 +137,7 @@ class Easemob
             ]
         );
     }
+
 
     /**
      * @param string|array $groupId 发给群ID
@@ -99,6 +167,14 @@ class Easemob
         return $this->sendMessage($from, $username, $options);
     }
 
+    /**
+     * [httpCurl desc]
+     * @desc 网络请求
+     * @author limx
+     * @param $url
+     * @param array $params
+     * @return mixed
+     */
     private function httpCurl($url, $params = [])
     {
         $header = [];
@@ -120,21 +196,21 @@ class Easemob
      */
     private function getToken()
     {
-//        $token = $this->cacheToken();
-//        if ($token) {
-//            return $token;
-//        } else {
-        $option ['grant_type'] = "client_credentials";
-        $option ['client_id'] = $this->client_id;
-        $option ['client_secret'] = $this->client_secret;
-        $token = $this->httpCurl($this->url . '/token', $option);
-        if (isset($token['access_token'])) {
-            //$this->cacheToken($token);
-            return $token['access_token'];
+        $token = $this->cacheToken();
+        if ($token) {
+            return $token;
         } else {
-            return false;
+            $option ['grant_type'] = "client_credentials";
+            $option ['client_id'] = $this->client_id;
+            $option ['client_secret'] = $this->client_secret;
+            $token = $this->httpCurl($this->url . '/token', $option);
+            if (isset($token['access_token'])) {
+                $this->cacheToken($token);
+                return $token['access_token'];
+            } else {
+                return false;
+            }
         }
-//        }
     }
 
 
