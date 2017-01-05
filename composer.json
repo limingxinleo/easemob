@@ -1,0 +1,15 @@
+{
+    "name": "limingxinleo/easemob",
+    "description": "easemob",
+    "type": "library",
+    "license": "MIT",
+    "autoload": {
+        "psr-4": {
+            "limx\\tools\\": "src"
+        }
+    },
+    "require": {
+        "php": ">=5.4.0",
+        "limingxinleo/limx-func": "^2.1"
+    }
+}
