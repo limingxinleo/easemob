@@ -11,6 +11,7 @@
 namespace limx\tools;
 
 use limx\func\Curl;
+use limx\func\Str;
 
 class Easemob
 {
@@ -98,7 +99,7 @@ class Easemob
             if ($this->storageAdapter) {
                 $tokenData = call_user_func($this->storageAdapter, false);
             } else {
-                if (empty($cacheFilePath)) {
+                if (empty($cacheFilePath) || !file_exists($cacheFilePath)) {
                     $tokenData = null;
                 } else {
                     $tokenData = file_get_contents($cacheFilePath);
